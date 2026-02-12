@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Harpsichord experiment</title>
+  <script src="https://unpkg.com/jspsych@7.3.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-slider-response@1.1.3"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-html-form@1.0.3"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.3"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
+  <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" />
+  <link href="https://unpkg.com/jspsych@7.3.2/css/jspsych.css" rel="stylesheet" type="text/css">
+  
+  <style>
+    .jspsych-html-slider-response .jspsych-slider { width: 800px !important; }
+    .jspsych-html-slider-response .label-high { color: red !important; font-weight: bold; }
+    .jspsych-html-slider-response .label-low { color: green !important; font-weight: bold; }
+    .jspsych-html-slider-response .label-medium { color: orange !important; font-weight: bold; }
+    #status { font-weight: bold; margin: 10px 0; font-size: 16px; }
+    .jspsych-btn { display: none; }
+     .jspsych-survey-multi-choice-question {
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: center !important;
+      align-items: center !important;
+      gap: 20px;
+    }
+    .jspsych-survey-multi-choice {
+      text-align: center;
+    }
+    
+    /* Play button styling */
+    #playButton {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 15px 32px;
+      font-size: 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 20px 0;
+      font-weight: bold;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    #playButton:hover { background: #45a049; }
+    #playButton:active { transform: translateY(2px); }
+    #playButton:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .jspsych-btn {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+}
+
+  </style>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+</head>
+<body></body>
+
+<script>
+  let subjectID = '';
+
+  const jsPsych = initJsPsych({
+    on_finish: function() {
+      jsPsych.data.displayData('json');
+      const csv = jsPsych.data.get().csv();
+      const blob = new Blob([csv], {type: 'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; 
+      const filename = subjectID ? `${subjectID}_harpsichord_data.csv` : 'harpsichord_data.csv'; 
+      a.download = filename; 
+      a.click();
+    }
+  });
+
+  const POLL_INTERVAL_MS = 100;
+  const AUDIO_FILES = ['sound/Meantone.mp3', 'sound/Equal.mp3'];
+
+  // Subject ID demographics trial (first)
+  const subjectTrial = {
+    type: jsPsychSurveyText,
+    preamble: '<p>Hello! Welcome to participate our listening experiment on perceived musical tension.</p> <p>Perceived musical tension is an affective, subjective experience of music. High tension refers to suspense, instability, dissonance, or a desire for resolution. Low-tension music sounds relaxed, stable, or consonant. </p><p>You will hear a harpsichord piece twice, while rating how much tension you perceive at any given moment. While you listen, please move the slider whenever you perceive a change. </p> <p>Thank you for your participation. First, please enter your subject ID number.</p>',
+    questions: [
+      {
+        prompt: "Subject ID:",
+        name: "subject_id",
+        required: true,
+        placeholder: "",
+        columns: 20
+      }
+    ],
+    on_load: () => {
+    document.querySelector('.jspsych-btn')?.remove();  // Hide, auto-advance on input
+  },
+    on_finish: function(data) {
+      subjectID = data.response.subject_id || '';
+      jsPsych.data.addProperties({subject_id: subjectID});
+    }
+  };
+
+  // Subject age trial (next)
+  const ageTrial = {
+    type: jsPsychSurveyText,
+    preamble: '<p>Please enter your age (years).</p>',
+    questions: [
+      {
+        prompt: "Age (years):",
+        name: "age",
+        required: true,
+        placeholder: "",
+        columns: 20
+      }
+    ],
+    on_load: () => {
+    document.querySelector('.jspsych-btn')?.remove();  // Hide, auto-advance on input
+  },
+    on_finish: function(data) {
+      const age = data.response.age || '';
+      jsPsych.data.addProperties({age: age});
+    }
+  };
+
+  // Subject musical education years trial (next)
+  const musicTrial = {
+    type: jsPsychSurveyText,
+    preamble: '<p>Please enter how many years of music education you have.</p>',
+    questions: [
+      {
+        prompt: "Years of music education:",
+        name: "music_education_years",
+        required: true,
+        placeholder: "",
+        columns: 20
+      }
+    ],
+    on_load: () => {
+    document.querySelector('.jspsych-btn')?.remove();  // Hide, auto-advance on input
+  },
+    on_finish: function(data) {
+      const musicEducationYears = data.response.music_education_years || '';
+      jsPsych.data.addProperties({music_education_years: musicEducationYears });
+    }
+  };
+
+  // Subject professional musician trial 
+  const musicProfTrial = {
+    type: jsPsychSurveyText,
+    preamble: '<p>Are you a professional musician?</p>',
+    questions: [
+      {
+        prompt: "Professional musician (Y/N):",
+        name: "music_professional",
+        required: true,
+        placeholder: "",
+        columns: 20
+      }
+    ],
+    on_load: () => {
+    document.querySelector('.jspsych-btn')?.remove();  // Hide, auto-advance on input
+  },
+  on_finish: function(data) {
+    jsPsych.data.addProperties({music_professional: data.response.music_professional || ''});  // Fixed key
+  }
+    //on_finish: function(data) {
+    //  const musicEducationYears = data.response.music_education_years || '';
+    //  jsPsych.data.addProperties({music_education_years: musicEducationYears });
+    //}
+  };
+
+  // Subject gender trial (next)
+  const genderTrial = {
+    type: jsPsychSurveyText,
+    preamble: '<p>Please enter your gender (F / M / X / NA).</p>',
+    questions: [
+      {
+        prompt: "Gender:",
+        name: "gender",
+        required: false,
+        placeholder: "NA",
+        columns: 20
+      }
+    ],
+    on_load: () => {
+    document.querySelector('.jspsych-btn')?.remove();  // Hide, auto-advance on input
+  },
+    on_finish: function(data) {
+      const gender = data.response.gender || '';
+      jsPsych.data.addProperties({gender: gender });
+    }
+  };
+
+  const multiTrial = {
+      type: jsPsychSurveyMultiChoice,
+      preamble: '<p></p>',
+      data: { trial_type: 'multi' },  // Matches sliders
+      questions: [{
+        prompt: "Are you a harpsichord player?",
+        options: ["Yes", "No"],
+        horizontal: true,
+        required: true
+      }],
+      on_load: () => {
+    document.querySelector('.jspsych-btn').style.display = 'none';
+  },
+  on_finish: (data) => {
+    const choice = data.response ? data.response.Q0 : null;
+    data.response = (choice === 'Yes') ? 1 : 0;  // Numeric like sliders (1=Yes, 0=No)
+    // Matches trial1/trial2: trial_type, response, rt, etc.
+  }
+    }
+
+
+  // Function to create an audio trial with play button and slider polling
+  function createAudioTrial(audioFile, trialNumber) {
+    return {
+      type: jsPsychHtmlSliderResponse,
+      data: { audio_file: audioFile, trial_number: trialNumber },
+      stimulus: `
+        <p>TRIAL ${trialNumber}: Rate musical tension continuously:</p>
+        <div style="text-align: center;">
+          <button id="playButton">▶️ PLAY AUDIO</button>
+        </div>
+        <p id="status" style="text-align: center;">Click PLAY to begin trial</p>
+        <audio id="ufoAudio" src="${audioFile}" preload="auto"></audio>
+      `,
+      labels: [
+        '<span style="color: green; font-weight: bold; font-size: 20px;">Low: relaxed, consonant, stable</span>',
+        '<span style="color: orange; font-weight: bold; font-size: 20px;">Medium</span>',
+        '<span style="color: red; font-weight: bold; font-size: 20px;">High: unstable, dissonant</span>'
+      ],
+      slider_width: 800,
+      slider_start: 50,
+      
+      on_load: function() {
+        const audio = document.getElementById('ufoAudio');
+        const status = document.getElementById('status');
+        const playButton = document.getElementById('playButton');
+        const continueBtn = document.querySelector('.jspsych-btn');
+        
+        // Initial state
+        continueBtn.style.display = 'none';
+        playButton.disabled = false;
+        status.textContent = 'Click PLAY to begin trial';
+        this.sliderHistory = [];
+        let audioStartTime = null;
+        let pollId = null;
+        let audioPlaying = false;
+        
+        const pollSlider = () => {
+          const currentTime = Math.round(performance.now() - audioStartTime);
+          const slider = document.querySelector('input[type="range"]');
+          const value = slider ? parseFloat(slider.value) : NaN;
+          this.sliderHistory.push({ time: currentTime, value: value });
+          pollId = setTimeout(pollSlider, POLL_INTERVAL_MS);
+        };
+        
+        // PLAY BUTTON HANDLER
+        const startAudio = () => {
+          playButton.disabled = true;
+          playButton.textContent = '⏳ PLAYING...';
+          status.textContent = 'Audio playing... Polling slider at 100-ms intervals.';
+          
+          audioStartTime = performance.now();
+          audio.play();
+          audioPlaying = true;
+          pollSlider(); // Start polling immediately
+        };
+        
+        playButton.addEventListener('click', startAudio);
+        
+        audio.onplay = () => {
+          // Already handled by startAudio
+        };
+        
+        audio.onended = () => {
+          audioPlaying = false;
+          if (pollId) clearTimeout(pollId);
+          status.textContent = '✅ Audio finished. Data collected.';
+          continueBtn.style.display = 'inline-block';
+          playButton.textContent = '▶️ PLAY AUDIO'; // Reset for potential retry
+        };
+        
+        audio.onerror = () => {
+          audioPlaying = false;
+          if (pollId) clearTimeout(pollId);
+          status.textContent = '❌ Audio failed. Click PLAY to retry.';
+          playButton.disabled = false;
+          playButton.textContent = '🔄 RETRY PLAY';
+        };
+        
+        // Prevent accidental continue before audio
+        continueBtn.addEventListener('click', (e) => {
+          if (audioPlaying) {
+            e.preventDefault();
+            status.textContent = 'Wait for audio to finish!';
+            return false;
+          }
+        });
+      },
+      
+      on_finish: function(data) {
+        const audio = document.getElementById('ufoAudio');
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+        data.slider_history = this.sliderHistory || [];
+        data.num_samples = data.slider_history.length;
+        data.first_time = data.slider_history[0]?.time || 0;
+        data.last_time = data.slider_history[data.slider_history.length - 1]?.time || 0;
+        console.table(data.slider_history.slice(0, 10));
+      },
+      
+      prompt: '<p>Slider polled continuously during audio</p>'
+    };
+  }
+
+  const shuffledOrder = AUDIO_FILES.sort(() => Math.random() - 0.5);
+  const trial1 = createAudioTrial(shuffledOrder[0], 1);
+  const trial2 = createAudioTrial(shuffledOrder[1], 2);
+
+  const preload_trial = {
+    type: jsPsychPreload,
+    audio: AUDIO_FILES
+  };
+  //jsPsych.run([multiTrial]);
+ // jsPsych.run([subjectTrial, ageTrial, genderTrial, musicProfTrial, musicTrial,  preload_trial, multiTrial, trial1, trial2]);
+jsPsych.run([
+  subjectTrial, ageTrial, musicTrial, musicProfTrial,
+  preload_trial, multiTrial, trial1, trial2,
+  {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+    <div style="text-align: center; font-size: 24px; color: #4CAF50;">
+      <h1>Thank you for participating!</h1>
+      <p>Your data has been recorded successfully.</p>
+      <p id="subject-display">Subject ID: Loading...</p>
+      <p>Press any key to download your results file (.csv) and finish.
+    </div>
+  `,
+  choices: "ALL_KEYS",
+  trial_duration: null,
+  data: { trial_type: 'thankyou' },
+  on_load: function() {
+    const allData = jsPsych.data.get().values();
+    const subjectRow = allData.find(row => row.subject_id);
+    const subjectDisplay = document.getElementById('subject-display');
+    subjectDisplay.innerHTML = `Subject ID: <strong>${subjectRow ? subjectRow.subject_id : 'Unknown'}</strong>`;
+  },
+  on_finish: function() {
+    jsPsych.data.displayData('json');
+  }
+}
+]);
+</script>
+</html>
