@@ -10,6 +10,7 @@
   <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
   <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
   <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" />
   <link href="https://unpkg.com/jspsych@7.3.2/css/jspsych.css" rel="stylesheet" type="text/css">
   
@@ -87,7 +88,7 @@
   // Subject ID demographics trial (first)
   const subjectTrial = {
     type: jsPsychSurveyText,
-    preamble: '<p>Hello! Welcome to our listening experiment on perceived musical tension.</p> <p>Perceived musical tension is an affective, subjective experience of music. </p> <p>High tension refers to suspense, instability, dissonance, or a desire for resolution. </p> <p>Low-tension music sounds relaxed, stable, or consonant. </p>  </p> <p> <p>You will hear a harpsichord piece twice, while rating how much tension you perceive at any given moment. </p> <p>While you listen, please move the slider whenever you perceive a change. Proceed to the second piece by pressing "continue".</p> <p>Thank you for your participation. First, please enter your subject ID number and press Enter.</p>',
+    preamble: '<p>Hello! Welcome to participate our listening experiment on perceived musical tension.</p> <p>Perceived musical tension is an affective, subjective experience of music. High tension refers to suspense, instability, dissonance, or a desire for resolution. Low-tension music sounds relaxed, stable, or consonant. </p><p>You will hear a harpsichord piece twice, while rating how much tension you perceive at any given moment. While you listen, please move the slider whenever you perceive a change. </p> <p>Thank you for your participation. First, please enter your subject ID number.</p>',
     questions: [
       {
         prompt: "Subject ID:",
@@ -103,8 +104,12 @@
     on_finish: function(data) {
       subjectID = data.response.subject_id || '';
       jsPsych.data.addProperties({subject_id: subjectID});
+      // Seed RNG with subject ID for per-subject random
+  Math.seedrandom(subjectID);
     }
+    
   };
+const shuffledOrder = AUDIO_FILES.sort(() => Math.random() - 0.5);
 
   // Subject age trial (next)
   const ageTrial = {
@@ -197,25 +202,58 @@
     }
   };
 
-  const multiTrial = {
-      type: jsPsychSurveyMultiChoice,
-      preamble: '<p></p>',
-      data: { trial_type: 'multi' },  // Matches sliders
-      questions: [{
-        prompt: "Are you a harpsichord player?",
-        options: ["Yes", "No"],
-        horizontal: true,
-        required: true
-      }],
-      on_load: () => {
-    document.querySelector('.jspsych-btn').style.display = 'none';
+// Subject using historical tunings frequently trial  
+  const historicalTuningsTrial = {
+    type: jsPsychSurveyText,
+    preamble: '<p>Do you frequently use historical tunings or temperaments?</p>',
+    questions: [
+      {
+        prompt: "Historical tunings (Y/N):",
+        name: "Historical_tunings",
+        required: true,
+        placeholder: "",
+        columns: 20
+      }
+    ],
+    on_load: () => {
+    document.querySelector('.jspsych-btn')?.remove();  // Hide, auto-advance on input
   },
-  on_finish: (data) => {
-    const choice = data.response ? data.response.Q0 : null;
-    data.response = (choice === 'Yes') ? 1 : 0;  // Numeric like sliders (1=Yes, 0=No)
-    // Matches trial1/trial2: trial_type, response, rt, etc.
+  on_finish: function(data) {
+    jsPsych.data.addProperties({historical_tunings: data.response.Historical_tunings || ''});  // Fixed key
   }
-    }
+    //on_finish: function(data) {
+    //  const musicEducationYears = data.response.music_education_years || '';
+    //  jsPsych.data.addProperties({music_education_years: musicEducationYears });
+    //}
+  };
+
+
+
+
+
+
+
+
+// Subject harpsichord player trial (old)
+  //const multiTrial = {
+  //    type: jsPsychSurveyMultiChoice,
+  //    preamble: '<p></p>',
+  //    data: { trial_type: 'multi' },  // Matches sliders
+  //    questions: [{
+  //      prompt: "Are you a harpsichord player?",
+  //      options: ["Yes", "No"],
+  //      horizontal: true,
+  //      required: true
+  //    }],
+  //    on_load: () => {
+  //  document.querySelector('.jspsych-btn').style.display = 'none';
+  //},
+  //on_finish: (data) => {
+  //  const choice = data.response ? data.response.Q0 : null;
+  //  data.response = (choice === 'Yes') ? 1 : 0;  // Numeric like sliders (1=Yes, 0=No)
+  //  // Matches trial1/trial2: trial_type, response, rt, etc.
+ // }
+ //   }
 
 
   // Function to create an audio trial with play button and slider polling
@@ -323,19 +361,38 @@
     };
   }
 
-  const shuffledOrder = AUDIO_FILES.sort(() => Math.random() - 0.5);
-  const trial1 = createAudioTrial(shuffledOrder[0], 1);
-  const trial2 = createAudioTrial(shuffledOrder[1], 2);
+  //const shuffledOrder = AUDIO_FILES.sort(() => Math.random() - 0.5);
+  //const trial1 = createAudioTrial(shuffledOrder[0], 1);
+  //const trial2 = createAudioTrial(shuffledOrder[1], 2);
 
-  const preload_trial = {
+  // In jsPsych.run(), after subjectTrial
+// Define template trials
+const meantoneTrial = createAudioTrial('sound/Meantone.mp3', 1);
+const equalTrial = createAudioTrial('sound/Equal.mp3', 2);
+
+// Shuffle order using jsPsych randomization (per-subject random)
+const audioOrder = jsPsych.randomization.shuffle([meantoneTrial, equalTrial]);
+ const preload_trial = {
     type: jsPsychPreload,
     audio: AUDIO_FILES
   };
+jsPsych.run([
+  subjectTrial, ageTrial, musicTrial, musicProfTrial, historicalTuningsTrial,
+  preload_trial,
+  audioOrder[0],  // Randomly ordered trial 1
+  audioOrder[1],  // Randomly ordered trial 2
+  // ... thankyou trial
+]);
+
+  //const preload_trial = {
+   // type: jsPsychPreload,
+    //audio: AUDIO_FILES
+  //};
   //jsPsych.run([multiTrial]);
  // jsPsych.run([subjectTrial, ageTrial, genderTrial, musicProfTrial, musicTrial,  preload_trial, multiTrial, trial1, trial2]);
 jsPsych.run([
   subjectTrial, ageTrial, musicTrial, musicProfTrial,
-  preload_trial, multiTrial, trial1, trial2,
+  preload_trial, historicalTuningsTrial, trial1, trial2,
   {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -362,3 +419,4 @@ jsPsych.run([
 ]);
 </script>
 </html>
+
